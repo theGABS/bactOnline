@@ -14,7 +14,7 @@ function ready(){
 	bacts[0].id = Math.round(Math.random()*100);
 	bacts[0].x = 100;
 	bacts[0].y = 100;
-	bacts[0].color = Math.round(Math.random() * 2.9 - 1);
+	bacts[0].color = Math.round(Math.random() * 2 );
 
 	// создать подключение
 	var socket = new WebSocket("ws://localhost:8081");
@@ -32,16 +32,12 @@ function ready(){
 	  var incomingMessage = event.data;
 	  showMessage(incomingMessage);
 	  var data = JSON.parse(event.data);
-	  if(data.type == 'data'){
-	  	for(var i = 0; i < data.bacts.size(); i++){
-	  		for(var j = 0; j < bacts.size(); j++){
-	  			if(data.bacts[i].id == bacts[j].id ){
-	  				data.bacts[i] = bacts[j];
-	  			}
-	  		}
+	  if(data.type == 'getBact'){
+	  	console.log(data);
+	  	for(var key in  data.bacts){
+	  		bacts[data.bacts[key].id] = data.bacts[key];
 	  	}
 	  }
-	  
 	};
 
 	// показать сообщение в div#subscribe

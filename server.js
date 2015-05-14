@@ -19,7 +19,7 @@ webSocketServer.on('connection', function(ws) {
     console.log('получено сообщение ' + message);
     var data = JSON.parse(message);
     if(data.type == 'getBact'){
-      ws.send(JSON.stringify(bacts));
+      ws.send(JSON.stringify( {"type":"getBact", "bacts" : bacts} ));
     }
 
     if(data.type == 'myBact'){
