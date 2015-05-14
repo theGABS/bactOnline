@@ -3,18 +3,24 @@ document.addEventListener('DOMContentLoaded', function() {
 }, false);
 
 
+var startGame = false;
+var myID;
 bacts = {};
 bactColors = ['#FF0000' , '#00FF00', '#0000FF'];
+var imageBact = new Image;
+imageBact.src = 'bact.png';
+var offsetX = 0;
+var offsetY = 0;
 
 
 
 function ready(){
 	// создаем свою бактерию 
-	bacts[0] = {};
-	bacts[0].id = Math.round(Math.random()*100);
-	bacts[0].x = 100;
-	bacts[0].y = 100;
-	bacts[0].color = Math.round(Math.random() * 2 );
+	// bacts[0] = {};
+	// bacts[0].id = Math.round(Math.random()*100);
+	// bacts[0].x = 100;
+	// bacts[0].y = 100;
+	// bacts[0].color = Math.round(Math.random() * 2 );
 
 	// создать подключение
 	var socket = new WebSocket("ws://localhost:8081");
@@ -27,10 +33,11 @@ function ready(){
 	//   return false;
 	// };
 
+
+
 	// обработчик входящих сообщений
 	socket.onmessage = function(event) {
-	  var incomingMessage = event.data;
-	  showMessage(incomingMessage);
+	  showMessage(event.data);
 	  var data = JSON.parse(event.data);
 	  if(data.type == 'getBact'){
 	  	console.log(data);
@@ -38,6 +45,16 @@ function ready(){
 	  		bacts[data.bacts[key].id] = data.bacts[key];
 	  	}
 	  }
+
+		if(data.type == 'startGame'){
+			myID = data.id;
+			bacts[myID] = {};
+			bacts[myID].id = myID;
+			bacts[myID].x = 100;
+			bacts[myID].y = 100;
+			bacts[myID].color = Math.round(Math.random() * 2 );
+			bacts[myID].size = 40;
+		}
 	};
 
 	// показать сообщение в div#subscribe
@@ -54,11 +71,11 @@ function ready(){
 	}
 
 	function sendData(){
-		socket.send(JSON.stringify({"type":"myBact","myBact":bacts[0]}));
+		socket.send(JSON.stringify({"type":"myBact","myBact":bacts[myID]}));
 	}
 
-	setInterval(updateData, 1000);
-	setInterval(sendData, 1000);
+	setInterval(updateData, 16);
+	//setInterval(sendData, 16);
 
 
 	var c = document.getElementById("canvas");
@@ -66,12 +83,12 @@ function ready(){
 
 	function render(){
 		ctx.clearRect ( 0 , 0 , canvas.width, canvas.height );
-		ctx.fillStyle = "#FF0000";
 
 		for(var key in bacts){
 			var bact = bacts[key];    
 			ctx.beginPath();
-			ctx.arc(bact.x, bact.y, 40, 0, 2*Math.PI);
+			ctx.drawImage(imageBact, bact.x - bact.size, bact.y - bact.size , bact.size*2, bact.size*2);
+			ctx.arc(bact.x, bact.y, bact.size - 5, 0, 2*Math.PI);
 			ctx.fillStyle = bactColors[bact.color];
 			ctx.fill();
 			ctx.stroke();
@@ -80,7 +97,11 @@ function ready(){
 
 	document.addEventListener("mousemove", mouseMove);
 	function mouseMove(event){
-		bacts[0].x = event.clientX;
-		bacts[0].y = event.clientY;
+		bacts[myID].x = event.clientX;
+		bacts[myID].y = event.clientY;
+		offsetX = bacts[myID].x;
+		offsetY = bacts[myID].y;
+		//ctx.translate(- offsetX + 200, - offsetY + 200);
+		sendData();
 	}
 }
