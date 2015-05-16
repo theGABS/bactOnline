@@ -2,31 +2,36 @@ var WebSocketServer = new require('ws');
 
 // подключенные клиенты
 var clients = {};
+
 var maxPlayerId = 0;
-players = {};
+var players = {};
 
-bacts = {};
-viruses = {};
+var maxBactId = 0;
+var bacts = {};
 
-virusMaxId = 0;
+var maxVirusId = 0;
+var viruses = {};
 
-for(var i = 0; i < 4; i++){
+
+
+for(var i = 0; i < 10; i++){
   bact = {};
   bact.id = i;
   bact.x = Math.round(Math.random()*4000);
   bact.y = Math.round(Math.random()*4000);
   bact.size = 40 + Math.round(Math.random()*40);
-  bact.maxCount = 64;
-  bact.count = 0;
+  bact.maxCount = bact.size/2;
+  bact.count = Math.round(Math.random()*20);
   bact.color = 0; // нейтральный
   bact.team = 0; // нейтральная 
-  bacts[i] = bact;
+  bacts[maxBactId++] = bact;
 }
 
 
 setInterval(function() {
   for(var key in bacts){
     var bact = bacts[key];
+    if(bact.team == 0) break;
     bact.count += 0.1 * Math.cos(Math.min(3.14, 3.14 / 2 * bact.count / bact.maxCount))
   }
   for(var key in viruses){
@@ -50,9 +55,9 @@ setInterval(function() {
             bact.count -= 1;
           }
           if(bact.count < 1){
-            bact.team = player.team;
-            bact.color = player.color;
-            player.bactsId.push(bact.id);
+            bact.team = virus.team;
+            bact.color = virus.color;
+            players[virus.team].bactsId.push(bact.id);
           }
 
           
@@ -62,25 +67,39 @@ setInterval(function() {
       } 
     }
   }
-
-
 }, 1000/60);
+
+
 // WebSocket-сервер на порту 8081
-var webSocketServer = new WebSocketServer.Server({
-  port: 8081
-});
+var webSocketServer = new WebSocketServer.Server( {port: 8081} );
 webSocketServer.on('connection', function(ws) {
 
   var id = ++maxPlayerId;
   players[id] = {'id':id, 'team':id, 'bactsId':[], 'color' : Math.floor(1 + Math.random()*8)};
-  player = players[id];
+  var player = players[id];
+
+  var needBact = 2;
   for(var key in bacts){
     if(bacts[key].team == 0){
       bacts[key].color = player.color;
       bacts[key].team = player.team;
       player.bactsId.push(bacts[key].id);
-      break;
+      if(--needBact == 0) break;
     }
+  }
+  while(needBact > 0){
+    bact = {};
+    bact.id = maxBactId;
+    bact.x = Math.round(Math.random()*4000);
+    bact.y = Math.round(Math.random()*4000);
+    bact.size = 40 + Math.round(Math.random()*40);
+    bact.maxCount = 64;
+    bact.count = Math.round(Math.random()*20);
+    bact.color = player.color; 
+    bact.team = player.team;
+    bacts[maxBactId++] = bact;
+    player.bactsId.push(bact.id);
+    needBact--;
   }
 
   for(var key in bacts){
@@ -125,7 +144,7 @@ webSocketServer.on('connection', function(ws) {
           virus.y = bact.y;
           virus.color = bact.color; // нейтральный
           virus.team = bact.team; // нейтральная 
-          viruses[++virusMaxId] = virus;
+          viruses[++maxVirusId] = virus;
         }
         bact.count *= 0.5;
       }

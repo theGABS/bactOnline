@@ -8,7 +8,7 @@ var startGame = false;
 var myID;
 bacts = {};
 viruses = {};
-bactColors = ['#777' , '#FF0000' , '#00FF00', '#0000FF' ,  '#FF0000' , '#00FF00', '#0000FF' ,  '#FF0000' , '#00FF00', '#0000FF'];
+bactColors = ['#777' , '#FF0000' , '#00FF00', '#0000FF' ,  '#FFFF00' , '#00FFFF', '#FF00FF' ,  '#FF8888' , '#88FF88', '#8888FF'];
 imageBact = new Image;
 imageBact.src = 'bact.png';
 var offsetX = 0;
@@ -20,6 +20,9 @@ var mouseX, mouseY;
 var mouseWorldX, mouseWorldY;
 
 var haveSelect = false;
+
+var needMoveX = 0;
+var needMoveY = 0;
 
 
 
@@ -48,9 +51,10 @@ function ready(){
 	socket.onmessage = function(event) {
 	  showMessage(event.data);
 	  var data = JSON.parse(event.data);
+	  globalData = data; // TODO 
 
 	  if(data.type == 'getWorld'){
-	  	console.log(data);
+	  	//console.log(data);
 	  	player = data.player;
 	  	viruses = data.viruses;
 	  	tmpBacts = bacts;
@@ -107,27 +111,63 @@ function ready(){
 	var ctx = c.getContext("2d");
 
 	function render(){
+		ctx.beginPath();
 		ctx.setTransform(1,0, 0, 1, 0, 0);
-		ctx.clearRect ( 0 , 0 , c.width, c.height );
+		ctx.fillStyle = "rgba(110, 110, 110, 255)";
+		ctx.fillRect( 0 , 0 , c.width, c.height );
 		ctx.setTransform(scaleX,0, 0, scaleY, -offsetX, -offsetY);
+
+
+		
+		
+		var bw = 4000;
+		var bh = 4000;
+		var p = 100;
+		for (var x = 0; x <= bw; x += 400) {
+		    ctx.moveTo(0.5 + x + p, p);
+		    ctx.lineTo(0.5 + x + p, bh + p);
+		}
+
+
+		for (var x = 0; x <= bh; x += 400) {
+		    ctx.moveTo(p, 0.5 + x + p);
+		    ctx.lineTo(bw + p, 0.5 + x + p);
+		}
+
+		ctx.strokeStyle = "black";
+		ctx.stroke();
 
 		for(var key in bacts){
 			var bact = bacts[key];    
 			ctx.beginPath();
 			
 			ctx.fillStyle = bactColors[bact.color];
+			ctx.strokeStyle =  bactColors[bact.color];
 			ctx.arc(bact.x, bact.y, bact.size - 5, 0, 2*Math.PI);
-			
+			ctx.stroke();
 			ctx.fill();
+			ctx.beginPath();
+			
+			
 			if(player.bactsId.indexOf(bact.id) != -1){
-				ctx.arc(bact.x, bact.y, bact.size + 5, 0, 2*Math.PI);
+				ctx.lineWidth = 7;
+				var speed = 5*Math.sin(new Date().getTime() * 0.005);
+				if(bact.select){
+					speed = 10*Math.sin(new Date().getTime() * 0.015);
+				}
+				ctx.arc(bact.x, bact.y, bact.size + 15 + speed, 0, 2*Math.PI);
+
+				ctx.stroke();
+				ctx.lineWidth = 1;
+				
+				
 			}
 			if(bact.select){ctx.globalAlpha = 0.8;}else{ctx.globalAlpha = 0.5;}
 			
 			
 			ctx.drawImage(imageBact, bact.x - bact.size, bact.y - bact.size , bact.size*2, bact.size*2);
 			ctx.globalAlpha = 1;
-			ctx.stroke();
+			
 
 			ctx.strokeText(bact.id + " " + Math.floor(bact.count), bact.x, bact.y);
 		}
@@ -149,21 +189,26 @@ function ready(){
 		//offsetY = bacts[myID].y;
 		sendData();
 
-		if(mouseX < 100){
-			offsetX -= 10;
-		}
+		// if(mouseX < 100){
+		// 	offsetX -= 10;
+		// }
 
-		if(mouseY < 100){
-			offsetY -= 10;
-		}
+		// if(mouseY < 100){
+		// 	offsetY -= 10;
+		// }
 
-		if(mouseX > window.innerWidth - 100){
-			offsetX += 10;
-		}
+		// if(mouseX > window.innerWidth - 100){
+		// 	offsetX += 10;
+		// }
 
-		if(mouseY > window.innerHeight - 100){
-			offsetY += 10;
-		}
+		// if(mouseY > window.innerHeight - 100){
+		// 	offsetY += 10;
+		// }
+
+		offsetX += needMoveX * 0.2;
+		offsetY += needMoveY * 0.2;
+		needMoveX *= 0.8;
+		needMoveY *= 0.8;
 
 		ctx.setTransform(scaleX,0, 0, scaleY, -offsetX, -offsetY);
 
@@ -188,6 +233,20 @@ function ready(){
 		// if(event.clientX < 100){
 		// 	offsetX--;
 		// }
+
+		if(canDrag){
+			// if( Math.pow(mouseX - mouseClickX, 2) + Math.pow(mousY - mouseClickY, 2) < 10*10){
+			// 	offsetX 
+			// }
+
+			needMoveX += mouseClickX - mouseX;
+			needMoveY += mouseClickY - mouseY;
+
+			mouseClickX = mouseX;
+			mouseClickY = mouseY; 
+		}
+
+
 	}
 
 	function attack(target){
@@ -202,8 +261,23 @@ function ready(){
 		socket.send(JSON.stringify({"type":"attack","attack":{'who':who, 'target': target}}));
 	}
 
+	document.addEventListener("mousedown", mouseDown);
+	function mouseDown(event){
+		mouseClickX = event.clientX;
+		mouseClickY = event.clientY;
+		canDrag = true;
+	}
+
+	document.addEventListener("mouseup", mouseUp);
+	function mouseUp(event){
+		//mouseClickX = event.clientX;
+		//mouseClickY = event.clientY;
+		canDrag = false;
+	}
+
 	document.addEventListener("click" , mouseClick);
 	function mouseClick(){
+		
 		console.log("click");
 		var selectBact = false;
 		for(var key in bacts){
@@ -215,10 +289,11 @@ function ready(){
 						attack(key);
 						break;
 					}
+				}else{
+					bacts[key].select = true;
+					haveSelect = true;
+					selectBact = true;
 				}
-				bacts[key].select = true;
-				haveSelect = true;
-				selectBact = true;
 				
 			}  
 		}
@@ -226,6 +301,7 @@ function ready(){
 			for(var key in bacts){
 				bacts[key].select = false;
 			}  
+			haveSelect = false;
 		}
 	}
 
