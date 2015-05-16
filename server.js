@@ -2,29 +2,134 @@ var WebSocketServer = new require('ws');
 
 // подключенные клиенты
 var clients = {};
+var maxPlayerId = 0;
+players = {};
 
-bacts = {"513":{"id":513,"x":142,"y":160,"color":3,"size":40}};
-virus = {};
+bacts = {};
+viruses = {};
+
+virusMaxId = 0;
+
+for(var i = 0; i < 4; i++){
+  bact = {};
+  bact.id = i;
+  bact.x = Math.round(Math.random()*4000);
+  bact.y = Math.round(Math.random()*4000);
+  bact.size = 40 + Math.round(Math.random()*40);
+  bact.maxCount = 64;
+  bact.count = 0;
+  bact.color = 0; // нейтральный
+  bact.team = 0; // нейтральная 
+  bacts[i] = bact;
+}
+
+
+setInterval(function() {
+  for(var key in bacts){
+    var bact = bacts[key];
+    bact.count += 0.1 * Math.cos(Math.min(3.14, 3.14 / 2 * bact.count / bact.maxCount))
+  }
+  for(var key in viruses){
+    var virus = viruses[key];
+    var x = bacts[virus.target].x - virus.x;
+    var y = bacts[virus.target].y - virus.y;
+    var len = Math.sqrt(x*x+y*y);
+    x /= len / Math.random() * 2;
+    y /= len / Math.random() * 2;
+
+    viruses[key].x += 10*x;
+    viruses[key].y += 10*y;
+    for(var key2 in bacts){
+      var bact = bacts[key2];
+      if( Math.pow(virus.x - bact.x , 2) + Math.pow(virus.y - bact.y , 2) < bact.size*bact.size){
+        if(bact.id == virus.target){
+
+          if(bact.team == virus.team){
+            bact.count += 1;
+          }else{
+            bact.count -= 1;
+          }
+          if(bact.count < 1){
+            bact.team = player.team;
+            bact.color = player.color;
+            player.bactsId.push(bact.id);
+          }
+
+          
+          delete viruses[key];
+          break;
+        }
+      } 
+    }
+  }
+
+
+}, 1000/60);
 // WebSocket-сервер на порту 8081
 var webSocketServer = new WebSocketServer.Server({
   port: 8081
 });
 webSocketServer.on('connection', function(ws) {
 
-  var id = Math.round(Math.random()*1000);
+  var id = ++maxPlayerId;
+  players[id] = {'id':id, 'team':id, 'bactsId':[], 'color' : Math.floor(1 + Math.random()*8)};
+  player = players[id];
+  for(var key in bacts){
+    if(bacts[key].team == 0){
+      bacts[key].color = player.color;
+      bacts[key].team = player.team;
+      player.bactsId.push(bacts[key].id);
+      break;
+    }
+  }
+
+  for(var key in bacts){
+    if(bacts[key].team == 0){
+      bacts[key].color = player.color;
+      bacts[key].team = player.team;
+      player.bactsId.push(bacts[key].id);
+      break;
+    }
+  }
   clients[id] = ws;
   console.log("новое соединение " + id);
-  ws.send(JSON.stringify( {"type":"startGame", "id" : id} ));
+  //ws.send(JSON.stringify( {"type":"startGame", "id" : id} ));
+  ws.send(JSON.stringify( {"type":"player", "player" : player} ));
 
   ws.on('message', function(message) {
     //console.log('получено сообщение ' + message);
     var data = JSON.parse(message);
-    if(data.type == 'getBact'){
-      ws.send(JSON.stringify( {"type":"getBact", "bacts" : bacts} ));
+    if(data.type == 'getWorld'){
+      ws.send(JSON.stringify( {"type":"getWorld", "bacts" : bacts, "viruses" : viruses, 'player':player} ));
     }
 
     if(data.type == 'myBact'){
-      bacts[data.myBact.id] = data.myBact;
+      //bacts[data.myBact.id] = data.myBact;
+    }
+
+    if(data.type == 'attack'){
+      console.log(data);
+      for(var key in data.attack.who){
+        var bact = bacts[data.attack.who[key]];
+        if(player.bactsId.indexOf(bact.id) == -1){
+          break;
+        }
+        console.log(bact);
+        console.log(key);
+        for(var i = 0; i < bact.count/2; i++){
+
+          virus = {};
+          //virus.id = i;
+          virus.target = data.attack.target;
+          virus.x = bact.x;
+          virus.y = bact.y;
+          virus.color = bact.color; // нейтральный
+          virus.team = bact.team; // нейтральная 
+          viruses[++virusMaxId] = virus;
+        }
+        bact.count *= 0.5;
+      }
+      //bacts[data.myBact.id] = data.myBact;
     }
 
 
@@ -41,7 +146,7 @@ webSocketServer.on('connection', function(ws) {
   ws.on('close', function() {
     console.log('соединение закрыто ' + id);
     delete clients[id];
-    delete bacts[id];
+    //delete bacts[id];
   });
 
 });
