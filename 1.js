@@ -24,6 +24,8 @@ var haveSelect = false;
 var needMoveX = 0;
 var needMoveY = 0;
 
+var canDrag = false;
+
 
 
 function ready(){
@@ -35,7 +37,10 @@ function ready(){
 	// bacts[0].color = Math.round(Math.random() * 2 );
 
 	// создать подключение
-	var socket = new WebSocket("ws://localhost:8081");
+	//var socket = new WebSocket("ws://localhost:8081");
+	var socket = new WebSocket("ws://localhost:8080");
+	socket.nowOpen = false;
+	
 
 	// отправить сообщение из формы publish
 	// document.forms.publish.onsubmit = function() {
@@ -45,7 +50,10 @@ function ready(){
 	//   return false;
 	// };
 
-
+	socket.onopen = function(event){
+		socket.nowOpen = true;
+		setInterval(updateData, 16);
+	}
 
 	// обработчик входящих сообщений
 	socket.onmessage = function(event) {
@@ -101,8 +109,7 @@ function ready(){
 		socket.send(JSON.stringify({"type":"myBact","myBact":bacts[myID]}));
 	}
 
-	setInterval(updateData, 16);
-	//setInterval(sendData, 16);
+	
 
 
 	var c = document.getElementById("canvas");
@@ -318,5 +325,13 @@ function ready(){
 		//offsetY = (mouseY * tmpScale * delta*0.0005 + tmpScale * offsetY)/scaleY;
 		ctx.setTransform(scaleX,0, 0, scaleY, -offsetX, -offsetY);
 		event.preventDefault ? event.preventDefault() : (event.returnValue = false);
+	}
+
+	window.addEventListener("resize", resize);
+	function resize(){
+		console.log("resize now");
+		//c - canvas
+		c.width  = window.innerWidth;
+		c.height = window.innerHeight;
 	}
 }
